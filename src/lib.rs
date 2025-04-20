@@ -3,10 +3,15 @@
 //! [![cdumay_error_json on docs.rs](https://docs.rs/cdumay_error_json/badge.svg)](https://docs.rs/cdumay_error_json)
 //! [![Source Code Repository](https://img.shields.io/badge/Code-On%20GitHub-blue?logo=GitHub)](https://github.com/cdumay/cdumay_error_json)
 //!
-use cdumay_context::Context;
+//! This crate provides standardized error handling for JSON operations,
+//! mapping `serde_json::Error` categories to custom error types with
+//! associated codes and HTTP status codes.
+
+use cdumay_context::{Context, Contextualize};
 use cdumay_error::{define_errors, define_kinds, AsError, Error};
 use serde_json::error::Category;
 
+/// Define custom error kinds with unique codes, HTTP status codes, and descriptions.
 define_kinds! {
     JsonSyntax = ("JSON-00001", 400, "Syntax Error"),
     JsonData = ("JSON-00002", 400, "Invalid JSON data"),
@@ -14,6 +19,7 @@ define_kinds! {
     JsonIo = ("JSON-00004", 500, "Syntax Error"),
 }
 
+/// Define error types corresponding to the previously defined error kinds.
 define_errors! {
     IoError = JsonIo,
     SyntaxError = JsonSyntax,
@@ -21,14 +27,88 @@ define_errors! {
     EofError = JsonEof
 }
 
+/// A utility struct for handling JSON errors and converting them into standardized error types.
 pub struct JsonError;
+
 impl JsonError {
-    pub fn json_error(err: &serde_json::Error, text: String, context: &mut Context) -> Error {
+    /// Converts a `serde_json::Error` into a standardized `Error` type based on its category.
+    ///
+    /// # Arguments
+    ///
+    /// * `err` - The `serde_json::Error` to be converted.
+    /// * `text` - A descriptive message for the error.
+    /// * `context` - A mutable reference to a `Context` containing additional error details.
+    ///
+    /// # Returns
+    ///
+    /// A standardized `Error` instance corresponding to the category of the provided `serde_json::Error`.
+    pub fn json_error(err: &serde_json::Error, text: Option<String>, context: &mut Context) -> Error {
+        let text = text.unwrap_or(err.to_string());
         match err.classify() {
-            Category::Io => IoError::new().set_message(text).set_details(context.into()).into(),
-            Category::Syntax => SyntaxError::new().set_message(text).set_details(context.into()).into(),
-            Category::Data => DataError::new().set_message(text).set_details(context.into()).into(),
-            Category::Eof => EofError::new().set_message(text).set_details(context.into()).into(),
+            Category::Io => IoError::new().set_message(text).set_details(context.inner()).into(),
+            Category::Syntax => SyntaxError::new().set_message(text).set_details(context.inner()).into(),
+            Category::Data => DataError::new().set_message(text).set_details(context.inner()).into(),
+            Category::Eof => EofError::new().set_message(text).set_details(context.inner()).into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cdumay_context::{Context, Contextualize};
+
+    /// Helper to test error conversion logic.
+    fn test_error_conversion(input: &str, expected_kind: &'static str) {
+        let mut ctx = Context::new();
+        let result = serde_json::from_str::<serde_json::Value>(input);
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        let custom = JsonError::json_error(&err, Some("Test error".to_string()), &mut ctx);
+
+        assert_eq!(custom.kind.message_id(), expected_kind);
+    }
+
+    #[test]
+    fn test_syntax_error() {
+        // Invalid syntax: trailing comma
+        test_error_conversion(r#"{"key": "value",}"#, "JSON-00001");
+    }
+
+    #[test]
+    fn test_data_error() {
+        // Data type mismatch: string expected, number provided
+        #[derive(serde::Deserialize, Debug)]
+        struct MyStruct {
+            key: String,
+        }
+
+        let input = r#"{"key": 123}"#;
+        let mut ctx = Context::new();
+        let result = serde_json::from_str::<MyStruct>(input);
+        assert!(result.is_err());
+
+        let err = result.unwrap_err();
+        let custom = JsonError::json_error(&err, Some("Test data error".to_string()), &mut ctx);
+        assert_eq!(custom.kind.message_id(), "JSON-00002");
+    }
+
+    #[test]
+    fn test_eof_error() {
+        // Unexpected end of file/input
+        test_error_conversion(r#"{"key": "value""#, "JSON-00003");
+    }
+
+    #[test]
+    fn test_io_error_simulation() {
+        // I/O errors are hard to simulate directly; here we simulate manually
+        use std::io;
+
+        let simulated_error = serde_json::Error::io(io::Error::new(io::ErrorKind::Other, "boom"));
+        let mut ctx = Context::new();
+
+        let custom = JsonError::json_error(&simulated_error, Some("Test IO error".to_string()), &mut ctx);
+        assert_eq!(custom.kind.message_id(), "JSON-00004");
     }
 }
