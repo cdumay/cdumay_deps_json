@@ -4,7 +4,7 @@ version = "0.1.2"
 edition = "2024"
 authors = ["Cédric Dumay <cedric.dumay@gmail.com>"]
 description = "A Rust Library for JSON error"
-documentation = "https://docs.rs/cdumay_context"
+documentation = "https://docs.rs/cdumay_error_json"
 homepage = "https://github.com/cdumay/cdumay_error_json"
 license-file = "LICENSE"
 readme = "README.md"
@@ -16,4 +16,4 @@ cdumay_error = { version = "1.0", features = ["derive"] }
 serde-value = "0.7"
 
 [dev-dependencies]
-serde = { version = "1.0.217", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
