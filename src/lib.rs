@@ -7,9 +7,9 @@
 //! mapping `serde_json::Error` categories to custom error types with
 //! associated codes and HTTP status codes.
 
-use cdumay_context::{Context, Contextualize};
-use cdumay_error::{define_errors, define_kinds, AsError, Error};
+use cdumay_error::{AsError, Error, define_errors, define_kinds};
 use serde_json::error::Category;
+use std::collections::BTreeMap;
 
 /// Define custom error kinds with unique codes, HTTP status codes, and descriptions.
 define_kinds! {
@@ -37,18 +37,18 @@ impl JsonError {
     ///
     /// * `err` - The `serde_json::Error` to be converted.
     /// * `text` - A descriptive message for the error.
-    /// * `context` - A mutable reference to a `Context` containing additional error details.
+    /// * `context` - A mutable reference to a `BTreeMap` containing additional error details.
     ///
     /// # Returns
     ///
     /// A standardized `Error` instance corresponding to the category of the provided `serde_json::Error`.
-    pub fn json_error(err: &serde_json::Error, text: Option<String>, context: &mut Context) -> Error {
+    pub fn json_error(err: &serde_json::Error, text: Option<String>, context: BTreeMap<String, serde_value::Value>) -> Error {
         let text = text.unwrap_or(err.to_string());
         match err.classify() {
-            Category::Io => IoError::new().set_message(text).set_details(context.inner()).into(),
-            Category::Syntax => SyntaxError::new().set_message(text).set_details(context.inner()).into(),
-            Category::Data => DataError::new().set_message(text).set_details(context.inner()).into(),
-            Category::Eof => EofError::new().set_message(text).set_details(context.inner()).into(),
+            Category::Io => IoError::new().set_message(text).set_details(context).into(),
+            Category::Syntax => SyntaxError::new().set_message(text).set_details(context).into(),
+            Category::Data => DataError::new().set_message(text).set_details(context).into(),
+            Category::Eof => EofError::new().set_message(text).set_details(context).into(),
         }
     }
 }
@@ -56,16 +56,15 @@ impl JsonError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cdumay_context::{Context, Contextualize};
 
     /// Helper to test error conversion logic.
     fn test_error_conversion(input: &str, expected_kind: &'static str) {
-        let mut ctx = Context::new();
+        let ctx = BTreeMap::new();
         let result = serde_json::from_str::<serde_json::Value>(input);
         assert!(result.is_err());
 
         let err = result.unwrap_err();
-        let custom = JsonError::json_error(&err, Some("Test error".to_string()), &mut ctx);
+        let custom = JsonError::json_error(&err, Some("Test error".to_string()), ctx);
 
         assert_eq!(custom.kind.message_id(), expected_kind);
     }
@@ -85,12 +84,12 @@ mod tests {
         }
 
         let input = r#"{"key": 123}"#;
-        let mut ctx = Context::new();
+        let ctx = BTreeMap::new();
         let result = serde_json::from_str::<MyStruct>(input);
         assert!(result.is_err());
 
         let err = result.unwrap_err();
-        let custom = JsonError::json_error(&err, Some("Test data error".to_string()), &mut ctx);
+        let custom = JsonError::json_error(&err, Some("Test data error".to_string()), ctx);
         assert_eq!(custom.kind.message_id(), "JSON-00002");
     }
 
@@ -106,9 +105,9 @@ mod tests {
         use std::io;
 
         let simulated_error = serde_json::Error::io(io::Error::new(io::ErrorKind::Other, "boom"));
-        let mut ctx = Context::new();
+        let ctx = BTreeMap::new();
 
-        let custom = JsonError::json_error(&simulated_error, Some("Test IO error".to_string()), &mut ctx);
+        let custom = JsonError::json_error(&simulated_error, Some("Test IO error".to_string()), ctx);
         assert_eq!(custom.kind.message_id(), "JSON-00004");
     }
 }
