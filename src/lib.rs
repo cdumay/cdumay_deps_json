@@ -7,7 +7,7 @@
 //! mapping `serde_json::Error` categories to custom error types with
 //! associated codes and HTTP status codes.
 
-use cdumay_error::{AsError, Error, define_errors, define_kinds};
+use cdumay_error::{AsError, Error, define_errors, define_kinds, ErrorConverter};
 use serde_json::error::Category;
 use std::collections::BTreeMap;
 
@@ -30,7 +30,8 @@ define_errors! {
 /// A utility struct for handling JSON errors and converting them into standardized error types.
 pub struct JsonError;
 
-impl JsonError {
+impl ErrorConverter for JsonError {
+    type Error = serde_json::Error;
     /// Converts a `serde_json::Error` into a standardized `Error` type based on its category.
     ///
     /// # Arguments
@@ -42,8 +43,7 @@ impl JsonError {
     /// # Returns
     ///
     /// A standardized `Error` instance corresponding to the category of the provided `serde_json::Error`.
-    pub fn json_error(err: &serde_json::Error, text: Option<String>, context: BTreeMap<String, serde_value::Value>) -> Error {
-        let text = text.unwrap_or(err.to_string());
+    fn convert(err: &serde_json::Error, text: String, context: BTreeMap<String, serde_value::Value>) -> Error {
         match err.classify() {
             Category::Io => IoError::new().set_message(text).set_details(context).into(),
             Category::Syntax => SyntaxError::new().set_message(text).set_details(context).into(),
@@ -64,7 +64,7 @@ mod tests {
         assert!(result.is_err());
 
         let err = result.unwrap_err();
-        let custom = JsonError::json_error(&err, Some("Test error".to_string()), ctx);
+        let custom = JsonError::convert_error(&err, Some("Test error".to_string()), ctx);
 
         assert_eq!(custom.kind.message_id(), expected_kind);
     }
@@ -89,7 +89,7 @@ mod tests {
         assert!(result.is_err());
 
         let err = result.unwrap_err();
-        let custom = JsonError::json_error(&err, Some("Test data error".to_string()), ctx);
+        let custom = JsonError::convert_error(&err, Some("Test data error".to_string()), ctx);
         assert_eq!(custom.kind.message_id(), "JSON-00002");
     }
 
@@ -107,7 +107,7 @@ mod tests {
         let simulated_error = serde_json::Error::io(io::Error::new(io::ErrorKind::Other, "boom"));
         let ctx = BTreeMap::new();
 
-        let custom = JsonError::json_error(&simulated_error, Some("Test IO error".to_string()), ctx);
+        let custom = JsonError::convert_error(&simulated_error, Some("Test IO error".to_string()), ctx);
         assert_eq!(custom.kind.message_id(), "JSON-00004");
     }
 }
