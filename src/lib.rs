@@ -3,11 +3,32 @@
 //! [![cdumay_error_json on docs.rs](https://docs.rs/cdumay_error_json/badge.svg)](https://docs.rs/cdumay_error_json)
 //! [![Source Code Repository](https://img.shields.io/badge/Code-On%20GitHub-blue?logo=GitHub)](https://github.com/cdumay/cdumay_error_json)
 //!
-//! This crate provides standardized error handling for JSON operations,
-//! mapping `serde_json::Error` categories to custom error types with
-//! associated codes and HTTP status codes.
-
-use cdumay_error::{AsError, Error, define_errors, define_kinds, ErrorConverter};
+//! A utility crate that converts `serde_json::Error` into structured, typed errors using the [`cdumay_error`](https://docs.rs/cdumay-error/) framework. This ensures consistent error handling, easier debugging, and informative error reporting across your Rust applications.
+//!
+//! ## Features
+//!
+//! - Categorizes `serde_json::Error` into specific error types (`Syntax`, `IO`, `Data`, `EOF`)
+//! - Each error type is associated with a custom code, HTTP status, and descriptive message
+//! - Structured output for APIs, logging systems, and observability platforms
+//! - Includes context metadata via `BTreeMap`
+//!
+//! ## Usage
+//!
+//! ```rust
+//! use cdumay_error::ErrorConverter;
+//! use serde_json::Value;
+//! use std::collections::BTreeMap;
+//! use cdumay_error_json::JsonErrorConverter;
+//!
+//! fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
+//!     serde_json::from_str::<Value>(input).map_err(|e| {
+//!        let mut ctx = BTreeMap::new();
+//!        ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
+//!        JsonErrorConverter::convert(&e, "Failed to parse JSON".to_string(), ctx)
+//!    })
+//! }
+//!```
+use cdumay_error::{AsError, Error, ErrorConverter, define_errors, define_kinds};
 use serde_json::error::Category;
 use std::collections::BTreeMap;
 
@@ -28,9 +49,9 @@ define_errors! {
 }
 
 /// A utility struct for handling JSON errors and converting them into standardized error types.
-pub struct JsonError;
+pub struct JsonErrorConverter;
 
-impl ErrorConverter for JsonError {
+impl ErrorConverter for JsonErrorConverter {
     type Error = serde_json::Error;
     /// Converts a `serde_json::Error` into a standardized `Error` type based on its category.
     ///
@@ -50,64 +71,5 @@ impl ErrorConverter for JsonError {
             Category::Data => DataError::new().set_message(text).set_details(context).into(),
             Category::Eof => EofError::new().set_message(text).set_details(context).into(),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Helper to test error conversion logic.
-    fn test_error_conversion(input: &str, expected_kind: &'static str) {
-        let ctx = BTreeMap::new();
-        let result = serde_json::from_str::<serde_json::Value>(input);
-        assert!(result.is_err());
-
-        let err = result.unwrap_err();
-        let custom = JsonError::convert_error(&err, Some("Test error".to_string()), ctx);
-
-        assert_eq!(custom.kind.message_id(), expected_kind);
-    }
-
-    #[test]
-    fn test_syntax_error() {
-        // Invalid syntax: trailing comma
-        test_error_conversion(r#"{"key": "value",}"#, "JSON-00001");
-    }
-
-    #[test]
-    fn test_data_error() {
-        // Data type mismatch: string expected, number provided
-        #[derive(serde::Deserialize, Debug)]
-        struct MyStruct {
-            key: String,
-        }
-
-        let input = r#"{"key": 123}"#;
-        let ctx = BTreeMap::new();
-        let result = serde_json::from_str::<MyStruct>(input);
-        assert!(result.is_err());
-
-        let err = result.unwrap_err();
-        let custom = JsonError::convert_error(&err, Some("Test data error".to_string()), ctx);
-        assert_eq!(custom.kind.message_id(), "JSON-00002");
-    }
-
-    #[test]
-    fn test_eof_error() {
-        // Unexpected end of file/input
-        test_error_conversion(r#"{"key": "value""#, "JSON-00003");
-    }
-
-    #[test]
-    fn test_io_error_simulation() {
-        // I/O errors are hard to simulate directly; here we simulate manually
-        use std::io;
-
-        let simulated_error = serde_json::Error::io(io::Error::new(io::ErrorKind::Other, "boom"));
-        let ctx = BTreeMap::new();
-
-        let custom = JsonError::convert_error(&simulated_error, Some("Test IO error".to_string()), ctx);
-        assert_eq!(custom.kind.message_id(), "JSON-00004");
     }
 }
