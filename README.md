@@ -13,9 +13,11 @@ A utility crate that converts `serde_json::Error` into structured, typed errors 
 - Each error type is associated with a custom code, HTTP status, and descriptive message
 - Structured output for APIs, logging systems, and observability platforms
 - Includes context metadata via `BTreeMap`
+- Provides a convenient `convert_result!` macro for error conversion
 
 ### Usage
 
+Using the `JsonErrorConverter` directly:
 ```rust
 use cdumay_error::ErrorConverter;
 use serde_json::Value;
@@ -28,5 +30,26 @@ fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
        ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
        JsonErrorConverter::convert(&e, "Failed to parse JSON".to_string(), ctx)
    })
+}
+```
+
+Using the `convert_result!` macro:
+```rust
+use cdumay_error_json::convert_result;
+use serde_json::Value;
+use std::collections::BTreeMap;
+use cdumay_error::ErrorConverter;
+
+fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
+    // Basic usage with just the result
+    convert_result!(serde_json::from_str::<Value>(input));
+
+    // With custom error message
+    convert_result!(serde_json::from_str::<Value>(input), "Failed to parse JSON");
+
+    // With custom context and message
+    let mut ctx = BTreeMap::new();
+    ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
+    convert_result!(serde_json::from_str::<Value>(input), ctx, "Failed to parse JSON")
 }
 ```
