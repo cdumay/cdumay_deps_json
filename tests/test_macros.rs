@@ -18,14 +18,15 @@ fn test_convert_result_with_context() {
 }
 
 #[test]
-fn test_convert_result_without_context() {
+fn test_convert_result_without_text() {
     let result: Result<Value, serde_json::Error> = serde_json::from_str("invalid json");
-    let converted = convert_result!(result, "Test error");
+    let mut context = BTreeMap::new();
+    context.insert("test".to_string(), serde_value::Value::String("value".to_string()));
+    let converted = convert_result!(result, context);
     assert!(converted.is_err());
     
     let err = converted.unwrap_err();
     assert_eq!(err.kind.message_id(), "JSON-00001");
-    assert!(err.message.contains("Test error"));
 }
 
 #[test]

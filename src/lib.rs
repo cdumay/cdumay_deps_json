@@ -42,12 +42,12 @@
 //!     // Basic usage with just the result
 //!     convert_result!(serde_json::from_str::<Value>(input));
 //!
-//!     // With custom error message
-//!     convert_result!(serde_json::from_str::<Value>(input), "Failed to parse JSON");
-//!
-//!     // With custom context and message
+//!     // With custom context
 //!     let mut ctx = BTreeMap::new();
 //!     ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
+//!     convert_result!(serde_json::from_str::<Value>(input), ctx.clone());
+//!
+//!     // With custom context and message
 //!     convert_result!(serde_json::from_str::<Value>(input), ctx, "Failed to parse JSON")
 //! }
 //! ```
