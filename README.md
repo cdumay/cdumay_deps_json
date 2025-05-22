@@ -5,7 +5,7 @@
 [![cdumay_error_json on docs.rs](https://docs.rs/cdumay_error_json/badge.svg)](https://docs.rs/cdumay_error_json)
 [![Source Code Repository](https://img.shields.io/badge/Code-On%20GitHub-blue?logo=GitHub)](https://github.com/cdumay/cdumay_error_json)
 
-A utility crate that converts `serde_json::Error` into structured, typed errors using the [`cdumay_error`](https://docs.rs/cdumay-error/) framework. This ensures consistent error handling, easier debugging, and informative error reporting across your Rust applications.
+A utility crate that converts `serde_json::Error` into structured, typed errors using the [`cdumay_core`](https://docs.rs/cdumay_core/) framework. This ensures consistent error handling, easier debugging, and informative error reporting across your Rust applications.
 
 ### Features
 
@@ -19,12 +19,12 @@ A utility crate that converts `serde_json::Error` into structured, typed errors 
 
 Using the `JsonErrorConverter` directly:
 ```rust
-use cdumay_error::ErrorConverter;
+use cdumay_core::{Error, ErrorConverter};
 use serde_json::Value;
 use std::collections::BTreeMap;
 use cdumay_error_json::JsonErrorConverter;
 
-fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
+fn parse_json(input: &str) -> Result<Value, Error> {
     serde_json::from_str::<Value>(input).map_err(|e| {
        let mut ctx = BTreeMap::new();
        ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
@@ -38,9 +38,9 @@ Using the `convert_result!` macro:
 use cdumay_error_json::convert_result;
 use serde_json::Value;
 use std::collections::BTreeMap;
-use cdumay_error::ErrorConverter;
+use cdumay_core::{Error, ErrorConverter};
 
-fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
+fn parse_json(input: &str) -> Result<Value, Error> {
     // Basic usage with just the result
     convert_result!(serde_json::from_str::<Value>(input));
 

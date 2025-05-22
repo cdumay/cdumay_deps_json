@@ -3,7 +3,7 @@
 //! [![cdumay_error_json on docs.rs](https://docs.rs/cdumay_error_json/badge.svg)](https://docs.rs/cdumay_error_json)
 //! [![Source Code Repository](https://img.shields.io/badge/Code-On%20GitHub-blue?logo=GitHub)](https://github.com/cdumay/cdumay_error_json)
 //!
-//! A utility crate that converts `serde_json::Error` into structured, typed errors using the [`cdumay_error`](https://docs.rs/cdumay-error/) framework. This ensures consistent error handling, easier debugging, and informative error reporting across your Rust applications.
+//! A utility crate that converts `serde_json::Error` into structured, typed errors using the [`cdumay_core`](https://docs.rs/cdumay_core/) framework. This ensures consistent error handling, easier debugging, and informative error reporting across your Rust applications.
 //!
 //! ## Features
 //!
@@ -17,12 +17,12 @@
 //!
 //! Using the `JsonErrorConverter` directly:
 //! ```rust
-//! use cdumay_error::ErrorConverter;
+//! use cdumay_core::{Error, ErrorConverter};
 //! use serde_json::Value;
 //! use std::collections::BTreeMap;
 //! use cdumay_error_json::JsonErrorConverter;
 //!
-//! fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
+//! fn parse_json(input: &str) -> Result<Value, Error> {
 //!     serde_json::from_str::<Value>(input).map_err(|e| {
 //!        let mut ctx = BTreeMap::new();
 //!        ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
@@ -36,9 +36,9 @@
 //! use cdumay_error_json::convert_result;
 //! use serde_json::Value;
 //! use std::collections::BTreeMap;
-//! use cdumay_error::ErrorConverter;
+//! use cdumay_core::{Error, ErrorConverter};
 //!
-//! fn parse_json(input: &str) -> Result<Value, cdumay_error::Error> {
+//! fn parse_json(input: &str) -> Result<Value, Error> {
 //!     // Basic usage with just the result
 //!     convert_result!(serde_json::from_str::<Value>(input));
 //!
@@ -54,19 +54,17 @@
 #[macro_use]
 mod macros;
 
-use cdumay_error::{AsError, Error, ErrorConverter, define_errors, define_kinds};
+use cdumay_core::{Error, ErrorConverter, define_errors, define_kinds};
 use serde_json::error::Category;
 use std::collections::BTreeMap;
 
-/// Define custom error kinds with unique codes, HTTP status codes, and descriptions.
 define_kinds! {
-    JsonSyntax = ("JSON-00001", 400, "Syntax Error"),
-    JsonData = ("JSON-00002", 400, "Invalid JSON data"),
-    JsonEof = ("JSON-00003", 500, "Reached the end of the input data"),
-    JsonIo = ("JSON-00004", 500, "Syntax Error"),
+    JsonSyntax = (400, "Syntax Error"),
+    JsonData = (400, "Invalid JSON data"),
+    JsonEof = (500, "Reached the end of the input data"),
+    JsonIo = (500, "Syntax Error"),
 }
 
-/// Define error types corresponding to the previously defined error kinds.
 define_errors! {
     IoError = JsonIo,
     SyntaxError = JsonSyntax,
@@ -92,10 +90,10 @@ impl ErrorConverter for JsonErrorConverter {
     /// A standardized `Error` instance corresponding to the category of the provided `serde_json::Error`.
     fn convert(err: &serde_json::Error, text: String, context: BTreeMap<String, serde_value::Value>) -> Error {
         match err.classify() {
-            Category::Io => IoError::new().set_message(text).set_details(context).into(),
-            Category::Syntax => SyntaxError::new().set_message(text).set_details(context).into(),
-            Category::Data => DataError::new().set_message(text).set_details(context).into(),
-            Category::Eof => EofError::new().set_message(text).set_details(context).into(),
+            Category::Io => IoError::new().with_message(text).with_details(context).into(),
+            Category::Syntax => SyntaxError::new().with_message(text).with_details(context).into(),
+            Category::Data => DataError::new().with_message(text).with_details(context).into(),
+            Category::Eof => EofError::new().with_message(text).with_details(context).into(),
         }
     }
 }

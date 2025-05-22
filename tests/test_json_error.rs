@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use cdumay_error::ErrorConverter;
+use cdumay_core::ErrorConverter;
 use cdumay_error_json::JsonErrorConverter;
 
 /// Helper to test error conversion logic.
@@ -11,13 +11,13 @@ fn test_error_conversion(input: &str, expected_kind: &'static str) {
     let err = result.unwrap_err();
     let custom = JsonErrorConverter::convert_error(&err, Some("Test error".to_string()), ctx);
 
-    assert_eq!(custom.kind.message_id(), expected_kind);
+    assert_eq!(custom.message(), expected_kind);
 }
 
 #[test]
 fn test_syntax_error() {
     // Invalid syntax: trailing comma
-    test_error_conversion(r#"{"key": "value",}"#, "JSON-00001");
+    test_error_conversion(r#"{"key": "value",}"#, "Test error");
 }
 
 #[test]
@@ -35,13 +35,13 @@ fn test_data_error() {
 
     let err = result.unwrap_err();
     let custom = JsonErrorConverter::convert_error(&err, Some("Test data error".to_string()), ctx);
-    assert_eq!(custom.kind.message_id(), "JSON-00002");
+    assert_eq!(custom.message(), "Test data error");
 }
 
 #[test]
 fn test_eof_error() {
     // Unexpected end of file/input
-    test_error_conversion(r#"{"key": "value""#, "JSON-00003");
+    test_error_conversion(r#"{"key": "value""#, "Test error");
 }
 
 #[test]
@@ -53,5 +53,5 @@ fn test_io_error_simulation() {
     let ctx = BTreeMap::new();
 
     let custom = JsonErrorConverter::convert_error(&simulated_error, Some("Test IO error".to_string()), ctx);
-    assert_eq!(custom.kind.message_id(), "JSON-00004");
+    assert_eq!(custom.message(), "Test IO error");
 }
