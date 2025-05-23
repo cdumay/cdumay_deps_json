@@ -62,7 +62,7 @@ define_kinds! {
     JsonSyntax = (400, "Syntax Error"),
     JsonData = (400, "Invalid JSON data"),
     JsonEof = (500, "Reached the end of the input data"),
-    JsonIo = (500, "Syntax Error"),
+    JsonIo = (500, "IO Error"),
 }
 
 define_errors! {
