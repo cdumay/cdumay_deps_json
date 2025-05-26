@@ -24,7 +24,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use cdumay_error_json::JsonErrorConverter;
 
-fn parse_json(input: &str) -> Result<Value, Error> {
+fn parse_json(input: &str) -> cdumay_core::Result<Value> {
     serde_json::from_str::<Value>(input).map_err(|e| {
        let mut ctx = BTreeMap::new();
        ctx.insert("input".to_string(), serde_value::Value::String(input.to_string()));
@@ -40,7 +40,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 use cdumay_core::{Error, ErrorConverter};
 
-fn parse_json(input: &str) -> Result<Value, Error> {
+fn parse_json(input: &str) -> cdumay_core::Result<Value> {
     // Basic usage with just the result
     convert_result!(serde_json::from_str::<Value>(input));
 
